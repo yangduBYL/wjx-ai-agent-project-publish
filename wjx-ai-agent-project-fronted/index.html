@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      全局不发送 Referer：AI 生成的网站可能引用第三方图床（如 dtstatic 等防盗链 CDN），
+      携带 Referer 会被拒绝（403）。设置 no-referrer 后，预览 iframe 内的图片等
+      子资源请求不再携带来源信息，可正常加载。
+    -->
+    <meta name="referrer" content="no-referrer" />
+    <title>AI 应用生成器</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

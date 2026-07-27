@@ -1,9 +1,12 @@
 package com.wjx.wjxaiagentprojectback.common;
 
+import lombok.Data;
+
 /**
  * 分页请求包装类
  */
-public class pageRequest {
+@Data
+public class PageRequest {
     /**
      * 当前页号
      */

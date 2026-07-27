@@ -2,7 +2,9 @@ package com.wjx.wjxaiagentprojectback.common;
 
 
 import com.wjx.wjxaiagentprojectback.exception.ErrorCode;
+import lombok.Data;
 
+@Data
 public class ResultUtils {
 
     /**
