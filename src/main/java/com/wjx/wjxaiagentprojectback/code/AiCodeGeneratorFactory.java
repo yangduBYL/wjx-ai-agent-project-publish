@@ -41,12 +41,12 @@ public class AiCodeGeneratorFactory {
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 //将类型和提示词给ai
-                HtmlCodeResult result = aiChatService.htmlchat(userMessage);
+                HtmlCodeResult result = aiChatService.htmlchat(1,userMessage);
                 //保存器保存
                 yield CodeFileSaverExecutor.executeSaver(result, CodeTypeEnum.HTML,appId);
             }
             case MULTI_FILE -> {
-                FileCodeResult result = aiChatService.filechat(userMessage);
+                FileCodeResult result = aiChatService.filechat(2,userMessage);
                 yield CodeFileSaverExecutor.executeSaver(result, CodeTypeEnum.MULTI_FILE,appId);
             }
             default -> {
@@ -67,11 +67,11 @@ public class AiCodeGeneratorFactory {
         }
         return switch (codeGenTypeEnum) {
             case HTML -> {
-                Flux<String> codeStream = aiChatService.generateHtmlCodeStream(userMessage);
+                Flux<String> codeStream = aiChatService.generateHtmlCodeStream(1,userMessage);
                 yield processCodeStream(codeStream, CodeTypeEnum.HTML,appId);
             }
             case MULTI_FILE -> {
-                Flux<String> codeStream = aiChatService.generateMultiFileCodeStream(userMessage);
+                Flux<String> codeStream = aiChatService.generateMultiFileCodeStream(1,userMessage);
                 yield processCodeStream(codeStream, CodeTypeEnum.MULTI_FILE,appId);
             }
             default -> {

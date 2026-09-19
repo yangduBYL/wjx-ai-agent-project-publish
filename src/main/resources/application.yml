@@ -6,6 +6,13 @@ spring:
     url: jdbc:mysql://localhost:3306/wjx_ai_code_project
     username: root
     password: 123456
+  #redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 123456
+      ttl: 3600 # 默认过期时间
   profiles:
     active: local
 server:

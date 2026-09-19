@@ -32,7 +32,7 @@ class WjxAiAgentProjectBackApplicationTests {
 
     @Test
     void test1(){
-        HtmlCodeResult results=aiChatService.htmlchat("跑酷类型的小游戏");
+        HtmlCodeResult results=aiChatService.htmlchat(1,"跑酷类型的小游戏");
         log.info(String.valueOf(results));
 
         //断言

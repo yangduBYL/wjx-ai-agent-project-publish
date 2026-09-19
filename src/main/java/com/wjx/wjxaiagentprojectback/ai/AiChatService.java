@@ -2,7 +2,9 @@ package com.wjx.wjxaiagentprojectback.ai;
 
 import com.wjx.wjxaiagentprojectback.ai.model.FileCodeResult;
 import com.wjx.wjxaiagentprojectback.ai.model.HtmlCodeResult;
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
 public interface AiChatService {
@@ -14,10 +16,10 @@ public interface AiChatService {
     String webchat(String userMessage);
 
     @SystemMessage(fromResource = "prompt/OneWebPage.txt")
-    HtmlCodeResult htmlchat(String userMessage);
+    HtmlCodeResult htmlchat(@MemoryId int memoryId,@UserMessage String userMessage);
 
     @SystemMessage(fromResource = "prompt/twoWebPages.txt")
-    FileCodeResult filechat(String userMessage);
+    FileCodeResult filechat(@MemoryId int memoryId,@UserMessage String userMessage);
 
     /**
      * 生成 HTML 代码（流式）
@@ -26,7 +28,7 @@ public interface AiChatService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/OneWebPage.txt")
-    Flux<String> generateHtmlCodeStream(String userMessage);
+    Flux<String> generateHtmlCodeStream(@MemoryId int memoryId,@UserMessage String userMessage);
 
     /**
      * 生成多文件代码（流式）
@@ -35,6 +37,6 @@ public interface AiChatService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/twoWebPages.txt")
-    Flux<String> generateMultiFileCodeStream(String userMessage);
+    Flux<String> generateMultiFileCodeStream(@MemoryId int memoryId,@UserMessage String userMessage);
 
 }
