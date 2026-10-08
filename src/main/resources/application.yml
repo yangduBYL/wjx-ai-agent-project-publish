@@ -13,6 +13,11 @@ spring:
       port: 6379
       password: 123456
       ttl: 3600 # 默认过期时间
+  #session配置（主要用于长期保存用户信息，减少频繁登录
+  session:
+    store-type: redis
+    #session 15天过期）
+    timeout: 1296000
   profiles:
     active: local
 server:
@@ -20,6 +25,10 @@ server:
   servlet:
     # 上下文路径
     context-path: /api
+    #cookie 15天过期
+    session:
+      cookie:
+        max-age: 1296000
 
 # springdoc-openapi项目配置
 springdoc:

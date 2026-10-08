@@ -6,7 +6,10 @@ import opennlp.tools.util.StringUtil;
 @Getter
 public enum CodeTypeEnum {
     HTML("原生HTML模式","html"),
-    MULTI_FILE("原生多文件模式","multi_file");
+    MULTI_FILE("原生多文件模式","multi_file"),
+    VUE_PROJECT("Vue 工程模式", "vue_project");
+
+
     private String text;
     private String code;
     CodeTypeEnum(String text,String code){

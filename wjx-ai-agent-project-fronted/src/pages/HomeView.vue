@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SendOutlined, AppstoreOutlined, StarFilled } from '@ant-design/icons-vue'
@@ -7,15 +7,25 @@ import { add1, listAppVoByPage, listGoodApp } from '@/api/appController'
 import AppCard from '@/components/AppCard.vue'
 import AppDetailModal from '@/components/AppDetailModal.vue'
 import { useUserStore } from '@/stores/user'
-import { getDefaultCover, openVisitUrl } from '@/utils/app'
+import { CodeGenTypeEnum, getDefaultCover, openVisitUrl, type CodeGenType } from '@/utils/app'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 /* ---------------- 提示词输入区 ---------------- */
 const promptText = ref('')
-const codeGenType = ref<'html' | 'multi_file'>('html')
+const codeGenType = ref<CodeGenType>(CodeGenTypeEnum.HTML)
 const generating = ref(false)
+
+/** 代码生成模式选项（html 单文件 / multi_file 多文件 / vue_project Vue 工程） */
+const codeGenTypeOptions = [
+  { label: '单文件模式', value: CodeGenTypeEnum.HTML },
+  { label: '多文件模式', value: CodeGenTypeEnum.MULTI_FILE },
+  { label: 'Vue 工程模式', value: CodeGenTypeEnum.VUE_PROJECT },
+]
+
+/** Vue 工程模式需要生成完整工程并构建，给用户一个预期 */
+const isVueProject = computed(() => codeGenType.value === CodeGenTypeEnum.VUE_PROJECT)
 
 // 示例提示词
 const examples = [
@@ -211,14 +221,10 @@ watch(
 
         <div class="prompt-footer">
           <div class="prompt-options">
-            <a-segmented
-              v-model:value="codeGenType"
-              :options="[
-                { label: '单文件模式', value: 'html' },
-                { label: '多文件模式', value: 'multi_file' },
-              ]"
-              size="small"
-            />
+            <a-segmented v-model:value="codeGenType" :options="codeGenTypeOptions" size="small" />
+            <span v-if="isVueProject" class="type-tip">
+              Vue 工程模式将生成完整 Vue3 工程，首次构建（npm install）约需 1~2 分钟
+            </span>
           </div>
 
           <a-button
@@ -428,6 +434,20 @@ watch(
   justify-content: space-between;
   gap: 12px;
   margin-top: 8px;
+}
+
+.prompt-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.type-tip {
+  font-size: 12px;
+  color: #98a0b3;
+  line-height: 1.5;
 }
 
 .generate-btn {

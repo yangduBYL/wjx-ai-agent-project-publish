@@ -2,7 +2,7 @@ package com.wjx.wjxaiagentprojectback;
 
 import com.wjx.wjxaiagentprojectback.ai.AiChatService;
 import com.wjx.wjxaiagentprojectback.ai.model.HtmlCodeResult;
-import com.wjx.wjxaiagentprojectback.code.AiCodeGeneratorFactory;
+import com.wjx.wjxaiagentprojectback.code.AiCodeGeneratorFacade;
 import com.wjx.wjxaiagentprojectback.damon.enums.CodeTypeEnum;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ class WjxAiAgentProjectBackApplicationTests {
     private AiChatService aiChatService;
 
     @Resource
-    private AiCodeGeneratorFactory aiCodeGeneratorFactory;
+    private AiCodeGeneratorFacade aiCodeGeneratorFacade;
 
     @Test
     void contextLoads() {
@@ -43,12 +43,12 @@ class WjxAiAgentProjectBackApplicationTests {
     @Test
     void test3(){
         Long appId=3L;
-        File fileresult = aiCodeGeneratorFactory.generateAndSaveCode("制作一个闯关打怪兽类型的小游戏", CodeTypeEnum.HTML,appId);
+        File fileresult = aiCodeGeneratorFacade.generateAndSaveCode("制作一个闯关打怪兽类型的小游戏", CodeTypeEnum.HTML,appId);
         Assertions.assertNotNull(fileresult);
     }
     @Test
     void generateAndSaveCodeStream() {
-        Flux<String> codeStream = aiCodeGeneratorFactory.generateAndSaveCodeStream("帮我制作一个任务记录网站",CodeTypeEnum.MULTI_FILE,2L);
+        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream("帮我制作一个任务记录网站",CodeTypeEnum.MULTI_FILE,2L);
         // 阻塞等待所有数据收集完成
         List<String> result = codeStream.collectList().block();
         // 验证结果
@@ -58,7 +58,7 @@ class WjxAiAgentProjectBackApplicationTests {
     }
     @Test
     void generateAndSaveCode() {
-        File file = aiCodeGeneratorFactory.generateAndSaveCode("任务记录网站", CodeTypeEnum.MULTI_FILE, 9L);
+        File file = aiCodeGeneratorFacade.generateAndSaveCode("任务记录网站", CodeTypeEnum.MULTI_FILE, 9L);
         Assertions.assertNotNull(file);
     }
 
