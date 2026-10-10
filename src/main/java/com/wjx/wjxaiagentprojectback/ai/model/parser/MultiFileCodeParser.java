@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 /**
  * 多文件代码解析器（HTML + CSS + JS）
  *
- * @author yupi
+ * @author wjx
  */
 public class MultiFileCodeParser implements CodeParser<FileCodeResult> {
 

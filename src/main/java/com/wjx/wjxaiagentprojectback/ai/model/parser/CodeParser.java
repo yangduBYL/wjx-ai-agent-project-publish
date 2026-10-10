@@ -4,7 +4,7 @@ package com.wjx.wjxaiagentprojectback.ai.model.parser;
  * 抽象化
  * 代码解析器策略接口
  *
- * @author yupi
+ * @author wjx
  */
 public interface CodeParser<T> {
 
