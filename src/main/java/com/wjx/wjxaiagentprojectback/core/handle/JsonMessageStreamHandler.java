@@ -1,12 +1,12 @@
 package com.wjx.wjxaiagentprojectback.core.handle;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.wjx.wjxaiagentprojectback.ai.model.message.*;
 import com.wjx.wjxaiagentprojectback.constant.AppConstant;
 import com.wjx.wjxaiagentprojectback.core.builder.VueProjectBuilder;
+import com.wjx.wjxaiagentprojectback.core.report.VueProjectReportBuilder;
 import com.wjx.wjxaiagentprojectback.damon.entity.User;
 import com.wjx.wjxaiagentprojectback.damon.enums.ChatHistoryMessageTypeEnum;
 import com.wjx.wjxaiagentprojectback.service.ChatHistoryService;
@@ -20,14 +20,18 @@ import java.util.Set;
 
 /**
  * JSON 消息流处理器
- * 处理 VUE_PROJECT 类型的复杂流式响应，包含工具调用信息
+ * 处理 VUE_PROJECT 类型的复杂流式响应，包含工具调用信息。
+ * <p>
+ * Vue 模式一次写入十几个文件、每个文件几十到几百行，源码不再回显到对话里
+ * （刷屏、落盘体积大、与右侧预览重复），改为：
+ * 1. 生成过程中逐行回显「已写入哪些文件」（纯文本，不含源码）；
+ * 2. 生成结束后追加一份「文件结构层级 + 每个文件说明」的报告，前端渲染成「文件结构」面板。
  */
 @Slf4j
 @Component
 public class JsonMessageStreamHandler {
     @Resource
     private VueProjectBuilder vueProjectBuilder;
-
 
 
     /**
@@ -47,12 +51,24 @@ public class JsonMessageStreamHandler {
         StringBuilder chatHistoryStringBuilder = new StringBuilder();
         // 用于跟踪已经见过的工具ID，判断是否是第一次调用
         Set<String> seenToolIds = new HashSet<>();
+        // 本次生成的文件写入记录：每次生成都要新建实例（不能做成字段，否则并发会话会串数据）
+        VueProjectReportBuilder reportBuilder = new VueProjectReportBuilder(appId);
         return originFlux
                 .map(chunk -> {
                     // 解析每个 JSON 消息块
-                    return handleJsonMessageChunk(chunk, chatHistoryStringBuilder, seenToolIds);
+                    return handleJsonMessageChunk(chunk, reportBuilder, chatHistoryStringBuilder, seenToolIds);
                 })
                 .filter(StrUtil::isNotEmpty) // 过滤空字串
+                // 流式响应全部结束后，追加「文件结构层级 + 文件说明」报告（Vue 模式不回显源码）
+                .concatWith(Flux.defer(() -> {
+                    String report = reportBuilder.buildReport();
+                    if (StrUtil.isBlank(report)) {
+                        // 本次没有写入任何文件（例如 AI 只做了追问），不追加报告
+                        return Flux.empty();
+                    }
+                    chatHistoryStringBuilder.append(report);
+                    return Flux.just(report);
+                }))
                 .doOnComplete(() -> {
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
@@ -71,7 +87,10 @@ public class JsonMessageStreamHandler {
     /**
      * 解析并收集 TokenStream 数据
      */
-    private String handleJsonMessageChunk(String chunk, StringBuilder chatHistoryStringBuilder, Set<String> seenToolIds) {
+    private String handleJsonMessageChunk(String chunk,
+                                          VueProjectReportBuilder reportBuilder,
+                                          StringBuilder chatHistoryStringBuilder,
+                                          Set<String> seenToolIds) {
         // 解析 JSON
         StreamMessage streamMessage = JSONUtil.toBean(chunk, StreamMessage.class);
         StreamMessageTypeEnum typeEnum = StreamMessageTypeEnum.getEnumByValue(streamMessage.getType());
@@ -92,24 +111,35 @@ public class JsonMessageStreamHandler {
                     seenToolIds.add(toolId);
                     return "\n\n[选择工具] 写入工具\n\n";
                 } else {
-                    // 不是第一次调用这个工具，直接返回空
+                    // 不是第一次看到这个工具，直接返回空
                     return "";
                 }
             }
             case TOOL_EXECUTED -> {
                 ToolExecutedMessage toolExecutedMessage = JSONUtil.toBean(chunk, ToolExecutedMessage.class);
-                JSONObject jsonObject = JSONUtil.parseObj(toolExecutedMessage.getArguments());
-                String relativeFilePath = jsonObject.getStr("relativeFilePath");
-                String suffix = FileUtil.getSuffix(relativeFilePath);
-                String content = jsonObject.getStr("content");
-                String result = String.format("""
-                        [工具调用] 写入文件 %s
-                        ```%s
-                        %s
-                        ```
-                        """, relativeFilePath, suffix, content);
+                String result = StrUtil.nullToEmpty(toolExecutedMessage.getResult());
+                String output;
+                if (VueProjectReportBuilder.isFileWriteResult(result)) {
+                    // 文件写入：只要「写了哪个文件、多少行」，不回显源码
+                    // 路径优先从工具返回值解析（返回值里就带真实相对路径，
+                    // 不依赖流式工具参数 —— 参数在消息组装阶段可能取不到，曾经因此显示成 null）
+                    String relativePath = VueProjectReportBuilder.parsePathFromResult(result);
+                    if (StrUtil.isBlank(relativePath)) {
+                        // 兜底一：从工具调用参数里取
+                        relativePath = parsePathFromArguments(toolExecutedMessage.getArguments());
+                    }
+                    if (StrUtil.isBlank(relativePath)) {
+                        // 兜底二：用序号占位，绝不把 null 输出给用户
+                        relativePath = reportBuilder.nextFallbackName();
+                    }
+                    boolean success = result.trim().startsWith("文件写入成功");
+                    output = reportBuilder.recordWrite(relativePath, success, result);
+                } else {
+                    // 其它工具：只回显工具名与结果摘要
+                    String name = StrUtil.blankToDefault(toolExecutedMessage.getName(), "工具");
+                    output = String.format("\n🔧 调用 %s：%s\n", name, truncate(result, 120));
+                }
                 // 输出前端和要持久化的内容
-                String output = String.format("\n\n%s\n\n", result);
                 chatHistoryStringBuilder.append(output);
                 return output;
             }
@@ -118,5 +148,24 @@ public class JsonMessageStreamHandler {
                 return "";
             }
         }
+    }
+
+    /**
+     * 从工具调用参数里解析文件相对路径（解析不出来返回 null）
+     */
+    private String parsePathFromArguments(String arguments) {
+        try {
+            JSONObject jsonObject = JSONUtil.parseObj(StrUtil.blankToDefault(arguments, "{}"));
+            return jsonObject.getStr("relativeFilePath");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String truncate(String text, int max) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() <= max ? text : text.substring(0, max) + "…";
     }
 }
