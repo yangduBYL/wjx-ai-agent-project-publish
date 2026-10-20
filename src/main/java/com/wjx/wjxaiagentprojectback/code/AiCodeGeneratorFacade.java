@@ -1,5 +1,6 @@
 package com.wjx.wjxaiagentprojectback.code;
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.json.JSONUtil;
 import com.wjx.wjxaiagentprojectback.ai.AiChatService;
 import com.wjx.wjxaiagentprojectback.ai.AiChatServiceFactory;
@@ -10,6 +11,8 @@ import com.wjx.wjxaiagentprojectback.ai.model.message.ToolExecutedMessage;
 import com.wjx.wjxaiagentprojectback.ai.model.message.ToolRequestMessage;
 import com.wjx.wjxaiagentprojectback.ai.model.parser.CodeParserExecutor;
 import com.wjx.wjxaiagentprojectback.ai.model.saver.CodeFileSaverExecutor;
+import com.wjx.wjxaiagentprojectback.constant.AppConstant;
+import com.wjx.wjxaiagentprojectback.core.builder.VueProjectBuilder;
 import com.wjx.wjxaiagentprojectback.damon.enums.CodeTypeEnum;
 import com.wjx.wjxaiagentprojectback.exception.BusinessException;
 import com.wjx.wjxaiagentprojectback.exception.ErrorCode;
@@ -18,6 +21,7 @@ import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.tool.ToolExecution;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -31,11 +35,13 @@ import java.io.File;
  */
 public class AiCodeGeneratorFacade {
 
-    @Resource
-    private AiChatService aiChatService;
+//    @Resource
+//    private AiChatService aiChatService;
 
     @Resource
     private AiChatServiceFactory aiChatServiceFactory;
+    @Autowired
+    private VueProjectBuilder vueProjectBuilder;
     /**
      * 入门的“指导性的”工厂方式。
      *
@@ -49,19 +55,19 @@ public class AiCodeGeneratorFacade {
      */
     public File generateAndSaveCode(String userMessage, CodeTypeEnum codeGenTypeEnum,Long appId) {
         // 根据 appId 获取对应的 AI 服务实例
-        AiChatService aiChatService = aiChatServiceFactory.getAiChatService(appId);
+        AiChatService aiChatService = aiChatServiceFactory.getAiChatService(appId, codeGenTypeEnum);
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 //将类型和提示词给ai
-                HtmlCodeResult result = aiChatService.htmlchat(1,userMessage);
+                HtmlCodeResult result = aiChatService.htmlchat(appId,userMessage);
                 //保存器保存
                 yield CodeFileSaverExecutor.executeSaver(result, CodeTypeEnum.HTML,appId);
             }
             case MULTI_FILE -> {
-                FileCodeResult result = aiChatService.filechat(2,userMessage);
+                FileCodeResult result = aiChatService.filechat(appId,userMessage);
                 yield CodeFileSaverExecutor.executeSaver(result, CodeTypeEnum.MULTI_FILE,appId);
             }
             default -> {
@@ -81,11 +87,11 @@ public class AiCodeGeneratorFacade {
         AiChatService aiChatService = aiChatServiceFactory.getAiChatService(appId, codeGenTypeEnum);
         return switch (codeGenTypeEnum) {
             case HTML -> {
-                Flux<String> codeStream = aiChatService.generateHtmlCodeStream(1,userMessage);
+                Flux<String> codeStream = aiChatService.generateHtmlCodeStream(appId,userMessage);
                 yield processCodeStream(codeStream, CodeTypeEnum.HTML, appId);
             }
             case MULTI_FILE -> {
-                Flux<String> codeStream = aiChatService.generateMultiFileCodeStream(2,userMessage);
+                Flux<String> codeStream = aiChatService.generateMultiFileCodeStream(appId,userMessage);
                 yield processCodeStream(codeStream, CodeTypeEnum.MULTI_FILE, appId);
             }
             case VUE_PROJECT -> {
@@ -95,7 +101,7 @@ public class AiCodeGeneratorFacade {
                 //   1. 所有 Vue 工程都会写进同一个 vue_project_3 目录；
                 //   2. 生成后的异步构建、静态预览、部署都按 vue_project_{真实appId} 找目录 → 找不到 → 站点打不开。
                 TokenStream tokenStream = aiChatService.generateVueProjectCodeStream(appId, userMessage);
-                yield processTokenStream(tokenStream);
+                yield processTokenStream(tokenStream, appId);
             }
             default -> {
                 String errorMessage = "不支持的生成类型：" + codeGenTypeEnum.getCode();
@@ -136,7 +142,7 @@ public class AiCodeGeneratorFacade {
      * @param tokenStream TokenStream 对象
      * @return Flux<String> 流式响应
      */
-    private Flux<String> processTokenStream(TokenStream tokenStream) {
+    private Flux<String> processTokenStream(TokenStream tokenStream,Long appId) {
         return Flux.create(sink -> {
             tokenStream.onPartialResponse((String partialResponse) -> {
                         AiResponseMessage aiResponseMessage = new AiResponseMessage(partialResponse);
@@ -151,6 +157,9 @@ public class AiCodeGeneratorFacade {
                         sink.next(JSONUtil.toJsonStr(toolExecutedMessage));
                     })
                     .onCompleteResponse((ChatResponse response) -> {
+                        //执行Vue项目构建（同步执行）
+                        String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
+                        vueProjectBuilder.buildProject(projectPath);
                         sink.complete();
                     })
                     .onError((Throwable error) -> {

@@ -1,11 +1,22 @@
 package com.wjx.wjxaiagentprojectback.exception;
 
+import cn.hutool.json.JSONUtil;
 import com.wjx.wjxaiagentprojectback.common.BaseResponse;
 import com.wjx.wjxaiagentprojectback.common.ResultUtils;
 import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.io.IOException;
+import java.util.Map;
 
 @Hidden//防止swagger显示
 @RestControllerAdvice
@@ -28,10 +39,13 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BusinessException.class)
     public BaseResponse<?> businessExceptionHandler(BusinessException e) {
-        log.error("{}", e.getMessage());// 后端打印错误信息
-        //返回给前端对应的错误信息响应
+        log.error("BusinessException", e);
+        // 尝试处理 SSE 请求
+        if (handleSseError(e.getCode(), e.getMessage())) {
+            return null;
+        }
+        // 对于普通请求，返回标准 JSON 响应
         return ResultUtils.error(e.getCode(), e.getMessage());
-
     }
     /**
      * 运行时异常处理(系统错误)
@@ -40,7 +54,96 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
-        log.error("{}", e.getMessage());// 后端打印错误信息
-        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");// 返回给前端对应的错误信息响应
+        log.error("RuntimeException", e);
+        // 尝试处理 SSE 请求
+        if (handleSseError(ErrorCode.SYSTEM_ERROR.getCode(), "系统错误")) {
+            return null;
+        }
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误");
+    }
+
+    /**
+     * 参数校验异常处理（@Valid / @Validated 触发的字段校验失败）
+     * 不拦截的话会落到 RuntimeException 分支，统一返回 50000「系统错误」，
+     * 前端看不到「标题不能为空」这类具体提示。
+     *
+     * @param e 校验异常
+     * @return 40000 + 第一条字段错误信息
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public BaseResponse<?> methodArgumentNotValidExceptionHandler(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .orElse(ErrorCode.PARAM_ERROR.getMessage());
+        log.warn("参数校验失败：{}", message);
+        return ResultUtils.error(ErrorCode.PARAM_ERROR, message);
+    }
+
+    /**
+     * 请求体缺失/格式错误（如 @RequestBody 必填但传了空体）
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public BaseResponse<?> httpMessageNotReadableExceptionHandler(HttpMessageNotReadableException e) {
+        log.warn("请求体解析失败：{}", e.getMessage());
+        return ResultUtils.error(ErrorCode.PARAM_ERROR, "请求参数格式错误");
+    }
+
+    /**
+     * 处理SSE请求的错误响应
+     *
+     * @param errorCode 错误码
+     * @param errorMessage 错误信息
+     * @return true表示是SSE请求并已处理，false表示不是SSE请求
+     */
+    private boolean handleSseError(int errorCode, String errorMessage) {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return false;
+        }
+        HttpServletRequest request = attributes.getRequest();
+        HttpServletResponse response = attributes.getResponse();
+        // 判断是否是SSE请求（通过Accept头或URL路径）
+        String accept = request.getHeader("Accept");
+        String uri = request.getRequestURI();
+        if ((accept != null && accept.contains("text/event-stream")) ||
+                uri.contains("/chat/gen/code")) {
+            try {
+                // 设置SSE响应头
+                response.setContentType("text/event-stream");
+                response.setCharacterEncoding("UTF-8");
+                response.setHeader("Cache-Control", "no-cache");
+                response.setHeader("Connection", "keep-alive");
+                // 构造错误消息的SSE格式
+                Map<String, Object> errorData = Map.of(
+                        "error", true,
+                        "code", errorCode,
+                        "message", errorMessage
+                );
+                String errorJson = JSONUtil.toJsonStr(errorData);
+                // 发送业务错误事件（避免与标准error事件冲突）
+                String sseData = "event: business-error\ndata: " + errorJson + "\n\n";
+                response.getWriter().write(sseData);
+                response.getWriter().flush();
+                // 发送结束事件
+                response.getWriter().write("event: done\ndata: {}\n\n");
+                response.getWriter().flush();
+                // 关键：把响应刷成 committed 状态。
+                // 否则 @ExceptionHandler 方法返回 null 后，Spring 仍会拿返回值去走消息转换器，
+                // 而请求头 Accept: text/event-stream 无法被 BaseResponse 的 JSON 转换器满足，
+                // 会抛 HttpMediaTypeNotAcceptableException → 客户端只拿到 500 + 空响应体，
+                // 前端永远收不到 business-error 事件（2026-10-16 实测复现并修复）。
+                // ServletInvocableHandlerMethod 里判断到 response.isCommitted() 时会直接 setRequestHandled(true)，
+                // 不再做消息转换。
+                response.flushBuffer();
+                // 表示已处理SSE请求
+                return true;
+            } catch (IOException ioException) {
+                log.error("Failed to write SSE error response", ioException);
+                // 即使写入失败，也表示这是SSE请求
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -53,6 +53,12 @@ const router = createRouter({
           meta: { title: '社区' },
         },
         {
+          path: 'community/:id',
+          name: 'communityDetail',
+          component: () => import('@/pages/CommunityDetailView.vue'),
+          meta: { title: '帖子详情' },
+        },
+        {
           path: 'app/manage',
           name: 'appManage',
           component: AppManageView,

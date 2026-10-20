@@ -24,10 +24,10 @@ public interface AiChatService {
      * @return
      */
     @SystemMessage(fromResource = "prompt/OneWebPage.txt")
-    HtmlCodeResult htmlchat(@MemoryId int memoryId,@UserMessage String userMessage);
+    HtmlCodeResult htmlchat(@MemoryId long memoryId,@UserMessage String userMessage);
 
     @SystemMessage(fromResource = "prompt/twoWebPages.txt")
-    FileCodeResult filechat(@MemoryId int memoryId,@UserMessage String userMessage);
+    FileCodeResult filechat(@MemoryId long memoryId,@UserMessage String userMessage);
 
     /**
      * 生成 HTML 代码（流式）
@@ -36,7 +36,7 @@ public interface AiChatService {
      * @return 生成的代码结果
      */
     @SystemMessage(fromResource = "prompt/OneWebPage.txt")
-    Flux<String> generateHtmlCodeStream(@MemoryId int memoryId,@UserMessage String userMessage);
+    Flux<String> generateHtmlCodeStream(@MemoryId long memoryId,@UserMessage String userMessage);
 
     /**
      * 生成多文件代码（流式）
@@ -46,7 +46,7 @@ public interface AiChatService {
      */
     @SystemMessage(fromResource = "prompt/twoWebPages.txt")
     //                                          int memoryId 关联并隔离对话历史
-    Flux<String> generateMultiFileCodeStream(@MemoryId int memoryId,@UserMessage String userMessage);
+    Flux<String> generateMultiFileCodeStream(@MemoryId long memoryId,@UserMessage String userMessage);
 
     /**
      * 生成 Vue 项目代码（流式）

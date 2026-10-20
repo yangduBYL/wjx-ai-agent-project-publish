@@ -12,6 +12,7 @@ spring:
       host: localhost
       port: 6379
       password: 123456
+      database: 0 # 补充此行配置
       ttl: 3600 # 默认过期时间
   #session配置（主要用于长期保存用户信息，减少频繁登录
   session:

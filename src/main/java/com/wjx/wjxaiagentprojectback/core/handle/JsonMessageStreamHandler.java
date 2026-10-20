@@ -4,6 +4,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.wjx.wjxaiagentprojectback.ai.model.message.*;
+import com.wjx.wjxaiagentprojectback.ai.tools.BaseTool;
+import com.wjx.wjxaiagentprojectback.ai.tools.ToolManager;
 import com.wjx.wjxaiagentprojectback.constant.AppConstant;
 import com.wjx.wjxaiagentprojectback.core.builder.VueProjectBuilder;
 import com.wjx.wjxaiagentprojectback.core.report.VueProjectReportBuilder;
@@ -15,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,6 +35,9 @@ import java.util.Set;
 public class JsonMessageStreamHandler {
     @Resource
     private VueProjectBuilder vueProjectBuilder;
+
+    @Resource
+    private ToolManager toolManager;
 
 
     /**
@@ -73,9 +79,6 @@ public class JsonMessageStreamHandler {
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
                     chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId());
-                    // 异步构造 Vue 项目
-                    String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
-                    vueProjectBuilder.buildProjectAsync(projectPath);
                 })
                 .doOnError(error -> {
                     // 如果AI回复失败，也要记录错误消息
@@ -105,13 +108,17 @@ public class JsonMessageStreamHandler {
             case TOOL_REQUEST -> {
                 ToolRequestMessage toolRequestMessage = JSONUtil.toBean(chunk, ToolRequestMessage.class);
                 String toolId = toolRequestMessage.getId();
+                String toolName = toolRequestMessage.getName();
                 // 检查是否是第一次看到这个工具 ID
                 if (toolId != null && !seenToolIds.contains(toolId)) {
-                    // 第一次调用这个工具，记录 ID 并完整返回工具信息
+                    // 第一次调用这个工具，记录 ID 并返回工具信息
                     seenToolIds.add(toolId);
-                    return "\n\n[选择工具] 写入工具\n\n";
+                    // 根据工具名称获取工具实例
+                    BaseTool tool = toolManager.getTool(toolName);
+                    // 返回格式化的工具调用信息
+                    return tool.generateToolRequestResponse();
                 } else {
-                    // 不是第一次看到这个工具，直接返回空
+                    // 不是第一次调用这个工具，直接返回空
                     return "";
                 }
             }
@@ -120,24 +127,27 @@ public class JsonMessageStreamHandler {
                 String result = StrUtil.nullToEmpty(toolExecutedMessage.getResult());
                 String output;
                 if (VueProjectReportBuilder.isFileWriteResult(result)) {
-                    // 文件写入：只要「写了哪个文件、多少行」，不回显源码
-                    // 路径优先从工具返回值解析（返回值里就带真实相对路径，
-                    // 不依赖流式工具参数 —— 参数在消息组装阶段可能取不到，曾经因此显示成 null）
+                    // 文件写入：路径优先从「工具返回值」里解析 —— 返回值里就带真实相对路径，
+                    // 不依赖流式工具参数（参数在消息组装阶段可能取不到，曾经因此显示成 null）；
+                    // 再依次兜底：工具参数 -> 序号占位，保证用户可见文案里永远不出现 null
                     String relativePath = VueProjectReportBuilder.parsePathFromResult(result);
                     if (StrUtil.isBlank(relativePath)) {
-                        // 兜底一：从工具调用参数里取
                         relativePath = parsePathFromArguments(toolExecutedMessage.getArguments());
                     }
                     if (StrUtil.isBlank(relativePath)) {
-                        // 兜底二：用序号占位，绝不把 null 输出给用户
                         relativePath = reportBuilder.nextFallbackName();
                     }
                     boolean success = result.trim().startsWith("文件写入成功");
+                    // recordWrite 一边回显「✅ 已写入 xxx · N 行 · 大小」，一边把文件记进报告，
+                    // 生成结束后由 buildReport() 汇总成「文件结构」面板
                     output = reportBuilder.recordWrite(relativePath, success, result);
                 } else {
-                    // 其它工具：只回显工具名与结果摘要
-                    String name = StrUtil.blankToDefault(toolExecutedMessage.getName(), "工具");
-                    output = String.format("\n🔧 调用 %s：%s\n", name, truncate(result, 120));
+                    // 读取/修改/删除/读目录等工具：回显「工具名 + 关键参数」，参数取不到时用占位文本
+                    BaseTool tool = toolManager.getTool(toolExecutedMessage.getName());
+                    String display = tool == null
+                            ? String.format("[工具调用] %s", StrUtil.blankToDefault(toolExecutedMessage.getName(), "未知工具"))
+                            : tool.generateToolExecutedResult(parseArguments(toolExecutedMessage.getArguments()));
+                    output = String.format("\n\n%s\n\n", display);
                 }
                 // 输出前端和要持久化的内容
                 chatHistoryStringBuilder.append(output);
@@ -159,6 +169,17 @@ public class JsonMessageStreamHandler {
             return jsonObject.getStr("relativeFilePath");
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * 安全解析工具参数：空串 / 非法 JSON 时返回空对象，避免展示时 NPE
+     */
+    private JSONObject parseArguments(String arguments) {
+        try {
+            return JSONUtil.parseObj(StrUtil.blankToDefault(arguments, "{}"));
+        } catch (Exception e) {
+            return new JSONObject();
         }
     }
 

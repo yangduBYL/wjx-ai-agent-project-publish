@@ -15,7 +15,9 @@ public enum ErrorCode {
     FORBIDDEN_ERROR(40300,"禁止访问"),
     SYSTEM_ERROR(50000,"系统错误"),
     OPERATION_ERROR(50001,"操作错误"),
-    INTERNAL_SERVER_ERROR(500,"服务器错误");
+    INTERNAL_SERVER_ERROR(500,"服务器错误"),
+    TOO_MANY_REQUEST(42900, "请求过于频繁");
+
     /**
      * 状态码
      */

@@ -2,10 +2,11 @@ package com.wjx.wjxaiagentprojectback.damon.dto.app;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-public class AppUpdateRequest {
+public class AppUpdateRequest implements Serializable {
     private Long id;
     /**
      * 应用名称

@@ -2,6 +2,7 @@ package com.wjx.wjxaiagentprojectback.damon.dto.app;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -9,7 +10,7 @@ import java.time.LocalDateTime;
  * @Description: 应用添加请求
  */
 @Data
-public class AppAddRequest {
+public class AppAddRequest implements Serializable {
     //信息脱敏
     /**
      * 应用名称

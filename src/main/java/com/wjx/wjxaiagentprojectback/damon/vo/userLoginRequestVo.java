@@ -2,6 +2,7 @@ package com.wjx.wjxaiagentprojectback.damon.vo;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -10,7 +11,7 @@ import java.time.LocalDateTime;
  *
  */
 @Data
-public class userLoginRequestVo {
+public class userLoginRequestVo implements Serializable {
     private long id;
     private String userAccount;
     private String userName;

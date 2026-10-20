@@ -15,7 +15,8 @@ public class WebScreenshotUtilsTest {
     @Test
     void saveWebPageScreenshot() {
         String testUrl = "https://www.bilibili.com/";
-        String webPageScreenshot = WebScreenshotUtils.saveWebPageScreenshot(testUrl);
+        // WebScreenshotUtils 是 Spring Bean，这里直接 new 一个实例做单测（无状态依赖）
+        String webPageScreenshot = new WebScreenshotUtils().saveWebPageScreenshot(testUrl);
         Assertions.assertNotNull(webPageScreenshot);
     }
 }

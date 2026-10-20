@@ -3,12 +3,13 @@ package com.wjx.wjxaiagentprojectback.damon.vo;
 import com.wjx.wjxaiagentprojectback.damon.entity.User;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 
-public class App_UserVo {
+public class App_UserVo implements Serializable {
     //app信息
     private Long id;
     private String appName;

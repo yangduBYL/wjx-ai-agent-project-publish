@@ -16,6 +16,12 @@ public class BaseResponse<T> implements Serializable {
     private String message;
 
     /**
+     * 无参构造：Jackson（缓存/JSON 反序列化）需要它来创建对象
+     */
+    public BaseResponse() {
+    }
+
+    /**
      * 构造方法
      * @param code
      * @param data

@@ -14,6 +14,13 @@
         <spring-boot.version>3.4.3</spring-boot.version>
     </properties>
     <dependencies>
+        <!-- Redisson -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>3.50.0</version>
+        </dependency>
+
         <!--腾讯云cos-->
         <dependency>
             <groupId>com.qcloud</groupId>
@@ -155,6 +162,10 @@
                     <source>21</source>
                     <target>21</target>
                     <encoding>UTF-8</encoding>
+                    <!-- 必须开启：langchain4j 用「方法参数名」作为工具 JSON Schema 的属性名并据此回填入参。
+                         不开启时参数名会退化成 arg0/arg1，模型只能靠描述猜参数，
+                         且流式回显按 relativeFilePath 取值会拿到 null。Spring Boot 官方骨架默认就开启。 -->
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
             <plugin>

@@ -9,3 +9,11 @@
 - 如果用户需求简单，只需要一个展示页面，选择 HTML
 - 如果用户需要多个页面但不涉及复杂交互，选择 MULTI_FILE
 - 如果用户需求复杂，涉及多页面、复杂交互、数据管理等，选择 VUE_PROJECT
+
+## 输出格式（必须严格遵守）
+
+必须只输出一个 JSON 对象，不要任何解释文字，不要用 Markdown 代码块包裹：
+
+{"codeGenType": "HTML"}
+
+其中 codeGenType 的值只能是 HTML、MULTI_FILE、VUE_PROJECT 三者之一。
