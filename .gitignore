@@ -1,5 +1,11 @@
 ### CUSTOM ###
+# 本地密钥配置（含 DeepSeek / COS 密钥）：只保留 example，真实文件一律不入库
 application-local.yml
+**/application-local.yml
+!.example
+wjx-ai-agent-project-fronted/.env.local
+*.log
+logs/
 temp
 
 

@@ -3,7 +3,6 @@ import { useUserStore } from '@/stores/user'
 import HomeLayout from '@/layouts/HomeLayout.vue'
 import HomeView from '@/pages/HomeView.vue'
 import ProjectView from '@/pages/ProjectView.vue'
-import SkillCenterView from '@/pages/SkillCenterView.vue'
 import MaterialView from '@/pages/MaterialView.vue'
 import CommunityView from '@/pages/CommunityView.vue'
 import AppGenerateView from '@/pages/AppGenerateView.vue'
@@ -35,16 +34,10 @@ const router = createRouter({
           meta: { title: '项目', requiresAuth: true },
         },
         {
-          path: 'skill',
-          name: 'skill',
-          component: SkillCenterView,
-          meta: { title: '技能中心' },
-        },
-        {
           path: 'material',
           name: 'material',
           component: MaterialView,
-          meta: { title: '素材库' },
+          meta: { title: '素材库', requiresAuth: true },
         },
         {
           path: 'community',

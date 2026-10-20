@@ -174,7 +174,8 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.wjx.wjxaiagentprojectback.WjxAiAgentProjectBackApplication</mainClass>
-                    <skip>true</skip>
+                    <!-- 允许 mvn package 打出可执行 jar（原先 skip=true 只产出瘦 jar，无法 java -jar 运行） -->
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>

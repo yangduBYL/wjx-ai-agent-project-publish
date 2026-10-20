@@ -4,6 +4,7 @@ package com.wjx.wjxaiagentprojectback.manager;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.model.PutObjectRequest;
 import com.qcloud.cos.model.PutObjectResult;
+import cn.hutool.core.util.StrUtil;
 import com.wjx.wjxaiagentprojectback.config.CosClientConfig;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -50,13 +51,29 @@ public class CosManager {
         // 上传文件
         PutObjectResult result = putObject(key, file);
         if (result != null) {
-            // 构建访问URL
-            String url = String.format("%s%s", cosClientConfig.getHost(), key);
+            // 构建访问URL：host 可能带/不带结尾斜杠，key 可能带/不带开头斜杠，统一拼成 host/key
+            String host = StrUtil.removeSuffix(cosClientConfig.getHost(), "/");
+            String objectKey = key.startsWith("/") ? key : "/" + key;
+            String url = host + objectKey;
             log.info("文件上传COS成功: {} -> {}", file.getName(), url);
             return url;
         } else {
             log.error("文件上传COS失败，返回结果为空");
             return null;
+        }
+    }
+
+    /**
+     * 删除 COS 对象（素材删除时清理存储用）
+     *
+     * @param key COS对象键（完整路径）
+     */
+    public void deleteObject(String key) {
+        try {
+            cosClient.deleteObject(cosClientConfig.getBucket(), key);
+            log.info("COS 对象删除成功: {}", key);
+        } catch (Exception e) {
+            log.warn("COS 对象删除失败: {} -> {}", key, e.getMessage());
         }
     }
 }
