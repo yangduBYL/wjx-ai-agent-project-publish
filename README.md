@@ -182,25 +182,22 @@ curl http://localhost:8123/api/health     # {"code":0,"data":"health","message":
    缓存 key 由请求体 MD5 生成，只缓存前 10 页，避免深分页污染缓存。
 7. **密钥与配置分离**：本地用 `application-local.yml`（git 忽略），线上用 `application-prod.yml` + 环境变量。
 
-## 9. 部署
 
-完整的学生高性价比部署方案（腾讯云/阿里云选型、学生优惠、Nginx/systemd 配置、验收清单、风险登记）
-见 **[docs/部署方案.md](docs/部署方案.md)**。
 
-## 10. 安全说明
+## 9. 安全说明
 
 - 仓库内**不包含任何真实密钥**；`application-local.example.yml` 只有占位符。
 - 如果你 fork 后要提交自己的配置，请使用环境变量或 `application-local.yml`（已被忽略），不要提交到 Git。
 - 上线前请：修改默认数据库/Redis 密码、限制 MySQL/Redis 只监听 127.0.0.1、在控制台给 AI 与 COS 设置额度告警。
 
-## 11. 已知限制 / Roadmap
+## 10. 已知限制 / Roadmap
 
 - 目前是单机部署，生成任务与截图在同一台机器上跑；并发量上来后需要拆出独立的「代码生成 worker」。
 - 生成的 Vue 工程每次都会重新 `npm install`，首次构建慢（1–2 分钟）；后续可做依赖缓存。
 - 社区目前是两级评论 + 全站公开，未做敏感词/图片审核。
 - 前端 UI 以浅色简洁为主，尚未做移动端深度适配。
 
-## 12. 致谢与许可
+## 11. 致谢与许可
 
 - 社区交流模块与素材库模块的结构参考了个人博客系统 `blog-platform`（MyBatis-Plus → 本项目改写为 MyBatis-Flex）。
 - 本项目为个人学习作品，**未授权商用**；如需引用请注明出处。
